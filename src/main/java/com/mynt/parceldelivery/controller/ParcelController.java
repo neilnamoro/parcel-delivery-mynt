@@ -12,11 +12,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Parcel Delivery API", description = "Parcel Delivery API")
 @AllArgsConstructor
@@ -29,14 +27,15 @@ public class ParcelController {
     @Operation(summary = "Get cost of parcel by weight and volume.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Parcel price generated.",
-            content = {@Content(mediaType = "application/json",
+            content = {@Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                     schema = @Schema(implementation = ParcelCostDto.class))}),
             @ApiResponse(responseCode = "400", description = "Invalid parcel details.",
             content = @Content),
             @ApiResponse(responseCode = "404", description = "Voucher code not found.",
                     content = @Content)
     })
-    @GetMapping(value = "/parcel-cost", consumes = "application/json")
+    @PostMapping(value = "/parcel-cost", consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ParcelCostDto> getParcelCost(@Valid @RequestBody ParcelDetailsDto parcelDetailsDto) {
         return new ResponseEntity<>(parcelService.computeParcelPrice(parcelDetailsDto), HttpStatus.OK);
     }

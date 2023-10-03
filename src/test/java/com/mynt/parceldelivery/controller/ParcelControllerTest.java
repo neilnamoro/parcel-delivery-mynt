@@ -44,7 +44,7 @@ public class ParcelControllerTest {
             }
             """;
 
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/parcels/parcel-cost")
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/parcels/parcel-cost")
                         .content(jsonContent)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest())
@@ -70,7 +70,7 @@ public class ParcelControllerTest {
             }
             """;
 
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/parcels/parcel-cost")
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/parcels/parcel-cost")
                         .content(jsonContent)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest())
@@ -93,7 +93,7 @@ public class ParcelControllerTest {
 
         when(parcelService.computeParcelPrice(parcelDetailsDto)).thenReturn(parcelCostDto);
 
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/parcels/parcel-cost")
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/parcels/parcel-cost")
                         .content(convertToJson(parcelDetailsDto))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(MockMvcResultMatchers.status().isOk())

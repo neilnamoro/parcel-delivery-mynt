@@ -11,6 +11,9 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
 
+/**
+ * This is to configure swagger ui have it running when we run the spring boot application.
+ */
 @Configuration
 public class OpenApiConfig {
 
@@ -31,7 +34,7 @@ public class OpenApiConfig {
         License mitLicense = new License().name("MIT License").url("https://choosealicense.com/licenses/mit/");
 
         Info info = new Info()
-                .title("Tutorial Management API")
+                .title("Parcel Delivery API")
                 .version("1.0")
                 .contact(contact)
                 .description("This API exposes endpoints for parcel delivery service.").termsOfService("https://www.namoro.com/terms")

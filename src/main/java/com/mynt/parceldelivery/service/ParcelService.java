@@ -10,8 +10,6 @@ import com.mynt.parceldelivery.repository.ParcelRuleRepository;
 import com.mynt.parceldelivery.webservice.VoucherDto;
 import com.mynt.parceldelivery.webservice.VoucherService;
 import lombok.AllArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
@@ -31,13 +29,9 @@ public class ParcelService {
         float volume = parcelDetailsDto.getHeight() * parcelDetailsDto.getLength() * parcelDetailsDto.getWidth();
 
         ParcelRule.RuleName ruleName = getRuleName(volume, parcelDetailsDto.getWeight());
-        System.out.println("Retrieved rule name: " + ruleName.toString());
-
 
         ParcelRule parcelRule = parcelRuleRepository.findByRuleName(ruleName)
                 .orElseThrow(() -> new ParcelDetailException(Constants.NO_PARCEL_RULE_FOUND));
-        System.out.println("Retrieved parcel rule: " + parcelRule.getRuleName());
-        System.out.println("Retrieved parcel rule cost: " + parcelRule.getBaseCost());
 
         float cost = computeCost(volume, parcelDetailsDto.getWeight(),
                 parcelRule.getBaseCost(), ruleName);

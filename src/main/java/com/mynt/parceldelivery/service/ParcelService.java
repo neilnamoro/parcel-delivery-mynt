@@ -16,7 +16,9 @@ import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.LocalDate;
 
-
+/**
+ *
+ */
 @Service
 @AllArgsConstructor
 public class ParcelService {
@@ -26,15 +28,14 @@ public class ParcelService {
     private final ParcelRuleRepository parcelRuleRepository;
 
     public ParcelCostDto computeParcelPrice(ParcelDetailsDto parcelDetailsDto) {
-        float volume = parcelDetailsDto.getHeight() * parcelDetailsDto.getLength() * parcelDetailsDto.getWidth();
 
-        ParcelRule.RuleName ruleName = getRuleName(volume, parcelDetailsDto.getWeight());
+        ParcelRule.RuleName ruleName =
+                ParcelRule.getParcelRule(parcelDetailsDto.getVolume(), parcelDetailsDto.getWeight());
 
         ParcelRule parcelRule = parcelRuleRepository.findByRuleName(ruleName)
                 .orElseThrow(() -> new ParcelDetailException(Constants.NO_PARCEL_RULE_FOUND));
 
-        float cost = computeCost(volume, parcelDetailsDto.getWeight(),
-                parcelRule.getBaseCost(), ruleName);
+        float cost = computeCost(parcelDetailsDto, parcelRule);
 
         if (StringUtils.hasLength(parcelDetailsDto.getVoucherCode())) {
             cost = getDiscountedPrice(cost, parcelDetailsDto.getVoucherCode());
@@ -43,29 +44,12 @@ public class ParcelService {
         return new ParcelCostDto(cost);
     }
 
-    private ParcelRule.RuleName getRuleName(float volume, float weight) {
-
-        ParcelRule.RuleName ruleName;
-
-        if (Float.compare(weight, 10f) > 0) return ParcelRule.RuleName.HEAVY_PARCEL;
-
-        if (volume < 1500f) {
-            ruleName = ParcelRule.RuleName.SMALL_PARCEL;
-        } else if (volume >= 1500f && volume < 2500f) {
-            ruleName = ParcelRule.RuleName.MEDIUM_PARCEL;
-        } else {
-            ruleName = ParcelRule.RuleName.LARGE_PARCEL;
-        }
-
-        return ruleName;
-    }
-
-    private float computeCost(float volume, float weight, float baseCost, ParcelRule.RuleName ruleName) {
+    private float computeCost(ParcelDetailsDto parcelDetailsDto, ParcelRule parcelRule) {
         float cost;
-        if (ruleName == ParcelRule.RuleName.HEAVY_PARCEL) {
-            cost = baseCost * weight;
+        if (parcelRule.getRuleName() == ParcelRule.RuleName.HEAVY_PARCEL) {
+            cost = parcelRule.getBaseCost() * parcelDetailsDto.getWeight();
         } else {
-            cost = baseCost * volume;
+            cost = parcelRule.getBaseCost() * parcelDetailsDto.getVolume();
         }
         return cost;
     }

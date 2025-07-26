@@ -32,4 +32,9 @@ public class ParcelDetailsDto {
     private Float length;
 
     private String voucherCode;
+
+    public Float getVolume() {
+        return this.height * this.length * this.width;
+    }
+
 }

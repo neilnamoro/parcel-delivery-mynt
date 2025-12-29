@@ -15,15 +15,13 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.when;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 @SpringBootTest
-public class ParcelServiceTest {
+class ParcelServiceTest {
 
     @Autowired
     private ParcelService parcelService;
@@ -34,159 +32,101 @@ public class ParcelServiceTest {
     @MockBean
     private VoucherService voucherService;
 
-
-    @Test
-    public void testHeavyParcelWithDiscount() {
-        ParcelDetailsDto parcelDetailsDto = ParcelDetailsDto.builder()
-                .weight(15f)
-                .length(5f)
-                .width(5f)
-                .height(5f)
-                .voucherCode("MYNT")
+    private ParcelDetailsDto createParcel(float weight, float length, float width, float height, String voucherCode) {
+        return ParcelDetailsDto.builder()
+                .weight(weight)
+                .length(length)
+                .width(width)
+                .height(height)
+                .voucherCode(voucherCode)
                 .build();
+    }
 
-        ParcelRule heavyParcelRule = ParcelRule.builder()
-                .ruleName(ParcelRule.RuleName.HEAVY_PARCEL)
-                .baseCost(20f)
+    private ParcelRule createRule(ParcelRule.RuleName ruleName, float baseCost) {
+        return ParcelRule.builder()
+                .ruleName(ruleName)
+                .baseCost(baseCost)
                 .build();
+    }
 
-        VoucherDto voucherDto = VoucherDto.builder()
-                .code("MYNT")
-                .discount("0.15")
-                .expiry(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE))
+    private VoucherDto createVoucher(String code, String discount, LocalDate expiry) {
+        return VoucherDto.builder()
+                .code(code)
+                .discount(discount)
+                .expiry(expiry.toString())
                 .build();
-
-        when(parcelRuleRepository.findByRuleName(ParcelRule.RuleName.HEAVY_PARCEL))
-                .thenReturn(Optional.ofNullable(heavyParcelRule));
-
-        when(voucherService.getVoucherDetails("MYNT")).thenReturn(voucherDto);
-
-        ParcelCostDto parcelCostDto = parcelService.computeParcelPrice(parcelDetailsDto);
-        assertEquals(255f, parcelCostDto.getParcelCost());
     }
 
     @Test
-    public void testHeavyParcelWithInvalidVoucher() {
-        ParcelDetailsDto parcelDetailsDto = ParcelDetailsDto.builder()
-                .weight(15f)
-                .length(5f)
-                .width(5f)
-                .height(5f)
-                .voucherCode("INVALID")
-                .build();
+    void computesHeavyParcelWithValidVoucher() {
+        ParcelDetailsDto parcel = createParcel(15f, 5f, 5f, 5f, "MYNT");
+        ParcelRule rule = createRule(ParcelRule.RuleName.HEAVY_PARCEL, 20f);
+        VoucherDto voucher = createVoucher("MYNT", "0.15", LocalDate.now());
 
-        ParcelRule heavyParcelRule = ParcelRule.builder()
-                .ruleName(ParcelRule.RuleName.HEAVY_PARCEL)
-                .baseCost(20f)
-                .build();
+        when(parcelRuleRepository.findByRuleName(rule.getRuleName())).thenReturn(Optional.of(rule));
+        when(voucherService.getVoucherDetails("MYNT")).thenReturn(voucher);
 
-        when(parcelRuleRepository.findByRuleName(ParcelRule.RuleName.HEAVY_PARCEL))
-                .thenReturn(Optional.ofNullable(heavyParcelRule));
-
-        when(voucherService.getVoucherDetails("INVALID"))
-                .thenThrow(HttpClientErrorException.class);
-
-        VoucherCodeException exception = assertThrows(VoucherCodeException.class,
-                () -> parcelService.computeParcelPrice(parcelDetailsDto));
-
-        assertEquals(Constants.VOUCHER_IS_INVALID, exception.getMessage());
+        ParcelCostDto result = parcelService.computeParcelPrice(parcel);
+        assertEquals(255f, result.getParcelCost());
     }
 
     @Test
-    public void testHeavyParcelWithExpiredVoucher() {
-        ParcelDetailsDto parcelDetailsDto = ParcelDetailsDto.builder()
-                .weight(15f)
-                .length(5f)
-                .width(5f)
-                .height(5f)
-                .voucherCode("MYNT")
-                .build();
+    void throwsExceptionForInvalidVoucher() {
+        ParcelDetailsDto parcel = createParcel(15f, 5f, 5f, 5f, "INVALID");
+        ParcelRule rule = createRule(ParcelRule.RuleName.HEAVY_PARCEL, 20f);
 
-        ParcelRule heavyParcelRule = ParcelRule.builder()
-                .ruleName(ParcelRule.RuleName.HEAVY_PARCEL)
-                .baseCost(20f)
-                .build();
+        when(parcelRuleRepository.findByRuleName(rule.getRuleName())).thenReturn(Optional.of(rule));
+        when(voucherService.getVoucherDetails("INVALID")).thenThrow(HttpClientErrorException.class);
 
-        VoucherDto voucherDto = VoucherDto.builder()
-                .code("MYNT")
-                .discount("0.15")
-                .expiry(LocalDate.now().minusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE))
-                .build();
-
-        when(parcelRuleRepository.findByRuleName(ParcelRule.RuleName.HEAVY_PARCEL))
-                .thenReturn(Optional.ofNullable(heavyParcelRule));
-
-        when(voucherService.getVoucherDetails("MYNT")).thenReturn(voucherDto);
-
-        VoucherCodeException exception = assertThrows(VoucherCodeException.class,
-                () -> parcelService.computeParcelPrice(parcelDetailsDto));
-
-        assertEquals(Constants.VOUCHER_IS_EXPIRED, exception.getMessage());
+        VoucherCodeException ex = assertThrows(VoucherCodeException.class,
+                () -> parcelService.computeParcelPrice(parcel));
+        assertEquals(Constants.VOUCHER_IS_INVALID, ex.getMessage());
     }
 
     @Test
-    public void testSmallParcelWithoutVoucher() {
-        ParcelDetailsDto parcelDetailsDto = ParcelDetailsDto.builder()
-                .weight(10f)
-                .length(5f)
-                .width(5f)
-                .height(5f)
-                .voucherCode(null)
-                .build();
+    void throwsExceptionForExpiredVoucher() {
+        ParcelDetailsDto parcel = createParcel(15f, 5f, 5f, 5f, "MYNT");
+        ParcelRule rule = createRule(ParcelRule.RuleName.HEAVY_PARCEL, 20f);
+        VoucherDto expiredVoucher = createVoucher("MYNT", "0.15", LocalDate.now().minusDays(1));
 
-        ParcelRule smallParcelRule = ParcelRule.builder()
-                .ruleName(ParcelRule.RuleName.SMALL_PARCEL)
-                .baseCost(0.03f)
-                .build();
+        when(parcelRuleRepository.findByRuleName(rule.getRuleName())).thenReturn(Optional.of(rule));
+        when(voucherService.getVoucherDetails("MYNT")).thenReturn(expiredVoucher);
 
-        when(parcelRuleRepository.findByRuleName(ParcelRule.RuleName.SMALL_PARCEL))
-                .thenReturn(Optional.ofNullable(smallParcelRule));
-
-        ParcelCostDto parcelCostDto = parcelService.computeParcelPrice(parcelDetailsDto);
-        assertEquals(3.75f, parcelCostDto.getParcelCost());
+        VoucherCodeException ex = assertThrows(VoucherCodeException.class,
+                () -> parcelService.computeParcelPrice(parcel));
+        assertEquals(Constants.VOUCHER_IS_EXPIRED, ex.getMessage());
     }
 
     @Test
-    public void testMediumParcelWithoutVoucher() {
-        ParcelDetailsDto parcelDetailsDto = ParcelDetailsDto.builder()
-                .weight(10f)
-                .length(25f)
-                .width(25f)
-                .height(3f)
-                .voucherCode(null)
-                .build();
+    void computesSmallParcelWithoutVoucher() {
+        ParcelDetailsDto parcel = createParcel(10f, 5f, 5f, 5f, null);
+        ParcelRule rule = createRule(ParcelRule.RuleName.SMALL_PARCEL, 0.03f);
 
-        ParcelRule mediumParcelRule = ParcelRule.builder()
-                .ruleName(ParcelRule.RuleName.MEDIUM_PARCEL)
-                .baseCost(0.04f)
-                .build();
+        when(parcelRuleRepository.findByRuleName(rule.getRuleName())).thenReturn(Optional.of(rule));
 
-        when(parcelRuleRepository.findByRuleName(ParcelRule.RuleName.MEDIUM_PARCEL))
-                .thenReturn(Optional.ofNullable(mediumParcelRule));
-
-        ParcelCostDto parcelCostDto = parcelService.computeParcelPrice(parcelDetailsDto);
-        assertEquals(75f, parcelCostDto.getParcelCost());
+        ParcelCostDto result = parcelService.computeParcelPrice(parcel);
+        assertEquals(3.75f, result.getParcelCost());
     }
 
     @Test
-    public void testLargeParcelWithoutVoucher() {
-        ParcelDetailsDto parcelDetailsDto = ParcelDetailsDto.builder()
-                .weight(10f)
-                .length(25f)
-                .width(25f)
-                .height(5f)
-                .voucherCode(null)
-                .build();
+    void computesMediumParcelWithoutVoucher() {
+        ParcelDetailsDto parcel = createParcel(10f, 25f, 25f, 3f, null);
+        ParcelRule rule = createRule(ParcelRule.RuleName.MEDIUM_PARCEL, 0.04f);
 
-        ParcelRule largeParcelRule = ParcelRule.builder()
-                .ruleName(ParcelRule.RuleName.LARGE_PARCEL)
-                .baseCost(0.05f)
-                .build();
+        when(parcelRuleRepository.findByRuleName(rule.getRuleName())).thenReturn(Optional.of(rule));
 
-        when(parcelRuleRepository.findByRuleName(ParcelRule.RuleName.LARGE_PARCEL))
-                .thenReturn(Optional.ofNullable(largeParcelRule));
+        ParcelCostDto result = parcelService.computeParcelPrice(parcel);
+        assertEquals(75f, result.getParcelCost());
+    }
 
-        ParcelCostDto parcelCostDto = parcelService.computeParcelPrice(parcelDetailsDto);
-        assertEquals(156.25f, parcelCostDto.getParcelCost());
+    @Test
+    void computesLargeParcelWithoutVoucher() {
+        ParcelDetailsDto parcel = createParcel(10f, 25f, 25f, 5f, null);
+        ParcelRule rule = createRule(ParcelRule.RuleName.LARGE_PARCEL, 0.05f);
+
+        when(parcelRuleRepository.findByRuleName(rule.getRuleName())).thenReturn(Optional.of(rule));
+
+        ParcelCostDto result = parcelService.computeParcelPrice(parcel);
+        assertEquals(156.25f, result.getParcelCost());
     }
 }
